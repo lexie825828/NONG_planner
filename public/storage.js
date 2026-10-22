@@ -1,0 +1,4 @@
+let dbPromise;
+function open(){return dbPromise??=new Promise((resolve,reject)=>{const r=indexedDB.open('nong-planner',1);r.onupgradeneeded=()=>r.result.createObjectStore('workspace');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+export async function readWorkspace(){const db=await open();return new Promise((resolve,reject)=>{const r=db.transaction('workspace').objectStore('workspace').get('current');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+export async function writeWorkspace(snapshot){const db=await open();return new Promise((resolve,reject)=>{const tx=db.transaction('workspace','readwrite');tx.objectStore('workspace').put(snapshot,'current');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('本机存储中断'));});}

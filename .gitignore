@@ -1,0 +1,22 @@
+data/
+node_modules/
+*.log
+
+.android-tools/
+android/build/
+android/keys/
+output/android/*.idsig
+
+# Local records, reference documents, screenshots and build outputs are not public source.
+output/
+tmp/
+/*.pdf
+/*.jpg
+/*.jpeg
+/*.png
+*.jks
+*.keystore
+*.p12
+.env
+.env.*
+!.env.example
