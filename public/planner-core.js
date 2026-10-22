@@ -7,4 +7,4 @@ export function habitDue(h){
  return d.toISOString().slice(0,10);
 }
 export const dueHabits=(habits,date)=>habits.filter(h=>{const due=habitDue(h);return due&&due<=date&&!(h.days||[]).includes(date);});
-export function aiHeaders(sessionId){return {'User-Agent':'NongPlanner/0.4.0','x-opencode-session':String(sessionId||'nong-default').replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,128)};}
+export function aiHeaders(sessionId){return {'User-Agent':'NongPlanner/0.4.1','x-opencode-session':String(sessionId||'nong-default').replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,128)};}

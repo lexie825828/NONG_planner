@@ -1,5 +1,6 @@
+import {resolveCoachReply,repairInstruction} from './coach-response.js';
 import {buildCoachMessages} from './coach-context.js';
-import {migrateState,parseModelReply} from './chat-core.js';
+import {migrateState} from './chat-core.js';
 import {calendar} from './calendar.js';
 // Native requests stay on the packaged, trusted origin; credentials remain native.
 if(window.NongAndroid){
@@ -17,7 +18,7 @@ if(window.NongAndroid){
    let built;try{built=buildCoachMessages(data);}catch(e){return new Response(JSON.stringify({error:e.message}),{status:e.status||400});}
    const response=await request('/api/coach','POST',{...data,modelMessages:built.messages});if(!response.ok)return response;
    const result=await response.json();if(typeof result.rawContent!=='string')return new Response(JSON.stringify(result));
-   const out=built.mode==='compress'?{summary:result.rawContent.slice(0,16000),compressedThroughId:built.session.messages.at(-1)?.id||''}:parseModelReply(result.rawContent,migrateState(data.state),()=>crypto.randomUUID());
+   const out=built.mode==='compress'?{summary:result.rawContent.slice(0,16000),compressedThroughId:built.session.messages.at(-1)?.id||''}:await resolveCoachReply(result.rawContent,migrateState(data.state),()=>crypto.randomUUID(),async plain=>{const retry=await request('/api/coach','POST',{...data,modelMessages:[...built.messages,{role:'assistant',content:JSON.stringify({reply:plain,questions:[],proposals:[]})},{role:'user',content:repairInstruction}]});if(!retry.ok)throw Error('卡片整理失败');const body=await retry.json();if(typeof body.rawContent!=='string')throw Error('卡片格式无效');return body.rawContent;});
    return new Response(JSON.stringify(out));
   }
   return request(url.pathname,options.method||'GET',data);
