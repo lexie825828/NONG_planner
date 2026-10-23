@@ -1,8 +1,42 @@
-# Nong Planner Android 0.4.1
+# Nong Planner Android 0.6.0
+
+## 0.6.0 目标折叠与今日总览
+
+20261023 更新。正式安装包从 [GitHub Releases](https://github.com/lexie825828/NONG_planner/releases/tag/v0.6.0) 下载；本地输出为 `output/android/Nong-Planner-0.6.0.apk`，versionCode 10，沿用原签名，可覆盖安装。
+
+中长期项目与任务作为主要入口，短期行动折叠在它们下面。从具体目标拆出行动时自动关联上级，也可在编辑或 AI 确认卡中选择同项目下的上级中长期任务。原有仅关联项目的短期行动折叠在项目下，未关联行动保留独立折叠区，不删除或移动周计划中的记录。
+
+每日计划默认出现在今日总览的第一张卡片。短按右上角六点手柄约 240ms 再拖动排序，也可点“调整布局”上下移动或恢复默认。排序作为计划本设置参与备份和同步，重开保留。
+
+点击日期章或顶部日期打开应用内月历，查看日程与 DDL，切月并跳到某一天。每日金句按北京时间日期从本地句库轮换，无模型请求。
+
+新增鹅黄和清新绿，支持分层混搭及原生保存；修正进度条显示比例。通过真实模拟器触摸、跨日、退出重开和正式包升级核对。见 [0.6.0 测试报告](../docs/TESTING.md)。
+
+## 0.5.1 明确计划类型，项目行动进入周计划
+
+正式安装包 `output/android/Nong-Planner-0.5.1.apk`，versionCode 9，沿用原签名，可覆盖安装。
+
+项目和任务都可明确确认短期、中期或长期。项目归属与是否填写具体时间不会决定计划类型。比如红酒学习 31 号截止，确认为中期项目；学习一课时则是关联它的短期行动，在某天或本周待办中执行。中长期任务使用 DDL，拆解后的小行动使用日程日期或所属周。
+
+项目页提供旧记录类型确认清单。0.5.0 曾将无时间项目任务的日期改为 DDL；现在停止该推断，保留原始日期追溯，确认短期行动时可恢复。没有依据的旧记录不自动归类。
+
+AI 草稿需确认计划类型再写入。通过 Android 16 / API 36 虚拟手机专项测试，正式安装包覆盖升级后全部记录保持一致，详情见 [0.5.1 测试报告](../docs/TESTING.md)。
+
+## 0.5.0 计划流程升级
+
+正式安装包 `output/android/Nong-Planner-0.5.0.apk`，versionCode 8，沿用原签名，建议先导出备份再覆盖安装，不卸载旧版。
+
+今日习惯只显示每日习惯与提前三天进入临期（含逾期）的循环事项。周计划首次进入定位今天，可切换全览 / 正常 / 放大；点击编辑，短按约 250 毫秒后上划完成，轻震与勾选动画将灰色条目放到当天末尾，再点撤销。未短按的普通滑动不会完成事项。
+
+日程日期独立于 DDL。0.5.0 曾按项目关联转换旧日期，该推断已在 0.5.1 停止，改为明确确认类型。旧周待办保留 ID 并合并为本周无日期任务。次日首次打开的待安排池可逐条或批量顺延、改日、放回本周或取消，保留进度和安排历史。取消记录可在项目页查看并恢复。
+
+设置中可调整主动复盘：默认每天 09:00、周日 20:30，7 天无进展的项目 / 中长期任务、3 天未打卡的每日习惯纳入关注。支持 22:00–08:00 免打扰、暂停和稍后一天。需要允许系统通知；后台使用本地规则，不调用 AI，点击通知进入复盘清单后可主动发送消息与模型梳理。
+
+后台使用非精确闹钟与系统任务，受 Android / ColorOS 省电策略影响可能延迟；强制停止应用后需重新打开。测试通过实际终止缓存进程后运行系统 JobService 验证通知投递，并核对免打扰、暂停和稍后提醒，后台模型请求为 0。完整 [0.5.0 测试报告](../docs/TESTING.md)。
 
 ## 0.4.1 计划卡片与体验修复
 
-正式包从 [GitHub Releases](https://github.com/lexie825828/NONG_planner/releases/latest) 下载；本地构建输出为 `output/android/Nong-Planner-0.4.1.apk`，versionCode 7，同一签名可覆盖安装，不要卸载旧版。
+正式包 `output/android/Nong-Planner-0.4.1.apk`，versionCode 7，同一签名可覆盖安装，不要卸载旧版。
 
 - 模型明确说有草稿却未返回卡片时，最多自动补全一次；普通文字回复下有“生成计划卡片”，升级前的旧回复也可整理。生成后先检查和确认，才写入计划本。补全和手动整理会调用当前配置的模型。
 - 周计划打卡和撤销打卡保留横向与纵向滚动位置。
@@ -39,7 +73,7 @@ OPPO PKT110 / Android 16 / WebView 155 的真机诊断显示，0.3.1 的内存�
 
 ## 安装包
 
-`output/android/Nong-Planner-0.4.1.apk` 是已签名的独立 Android 安装包，最低 Android 8.0（API 26），目标 Android 15（API 35），不依赖特定 CPU 架构。需要保持 Android System WebView / Chrome 更新，以支持现代 JavaScript 功能。签名为项目个人证书，供直接安装使用，尚未提交应用商店。
+`output/android/Nong-Planner-0.6.0.apk` 是已签名的独立 Android 安装包，最低 Android 8.0（API 26），目标 Android 15（API 35），不依赖特定 CPU 架构。需要保持 Android System WebView / Chrome 更新，以支持现代 JavaScript 功能。签名为项目个人证书，供直接安装使用，尚未提交应用商店。
 
 把 APK 传到手机，在文件管理器中点击安装；按系统提示允许该文件管理器“安装未知应用”。无需开启开发者模式。安装后桌面名称为 **Nong Planner**。
 
@@ -67,10 +101,10 @@ OPPO PKT110 / Android 16 / WebView 155 的真机诊断显示，0.3.1 的内存�
 
 ## 构建与签名
 
-构建入口 `android/build.ps1`，没有 npm 构建依赖或 Gradle 下载步骤。需要 Windows、PowerShell 7、JDK 17+、Google Android Build Tools 35.0.0、SDK Platform 35。工具位于项目 `.android-tools` 下，可传入 `-JdkPath`、`-SdkTools`、`-SdkPlatform` 使用其他安装位置。
+构建入口 `android/build.ps1`，没有 npm 构建依赖或 Gradle 下载步骤。需要 JDK 17+、Google Android Build Tools 35.0.0、SDK Platform 35。工具位于项目 `.android-tools` 下，可传入 `-JdkPath`、`-SdkTools`、`-SdkPlatform` 使用其他安装位置。
 
 ```powershell
-pwsh -File ./android/build.ps1
+./android/build.ps1
 ```
 
 工具来源（Google 官方）与索引中的 SHA-1 校验值：
@@ -92,10 +126,10 @@ pwsh -File ./android/build.ps1
 
 ## 使用自己安装的 Android SDK
 
-不需要下载本项目开发机器的工具目录。安装 Google 官方 SDK Platform 35 和 Build Tools 35 后，传入对应目录：
+需要 Windows、PowerShell 7、JDK 17+、Google SDK Platform 35 和 Build Tools 35。示例：
 
 ```powershell
 pwsh -File android/build.ps1 -JdkPath 'C:/Java/jdk-21' -SdkTools 'C:/Android/Sdk/build-tools/35.0.0' -SdkPlatform 'C:/Android/Sdk/platforms/android-35'
 ```
 
-首次构建会在本机 `android/keys/` 生成自己的签名证书。请自行安全保存，它不应提交到 Git；自建证书无法覆盖项目正式发布证书签名的安装包。
+首次构建会在本机 android/keys/ 生成自己的签名证书，请自行保存，不提交到 Git。自建证书不能覆盖项目正式发布证书签名的 APK。

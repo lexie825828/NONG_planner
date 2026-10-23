@@ -37,7 +37,7 @@ return json(res,200,await runCoach(b,config.ai));
 }
 return json(res,404,{error:'接口不存在'});}
 const files={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/native-boot.js':'native-boot.js','/android-runtime.js':'android-runtime.js','/coach-context.js':'coach-context.js','/calendar.js':'calendar.js','/chat-core.js':'chat-core.js','/chat-ui.js':'chat-ui.js','/storage.js':'storage.js','/chat.css':'chat.css','/style.css':'style.css','/manifest.webmanifest':'manifest.webmanifest','/sw.js':'sw.js','/icon.svg':'icon.svg','/icon-192.png':'icon-192.png','/icon-512.png':'icon-512.png'};
-files['/planner-core.js']='planner-core.js';files['/coach-response.js']='coach-response.js';
+files['/overview.js']='overview.js';files['/planning-ui.js']='planning-ui.js';files['/scroll-chain.js']='scroll-chain.js';files['/planner-core.js']='planner-core.js';files['/coach-response.js']='coach-response.js';
 const f=files[url.pathname];if(!f)return json(res,404,{error:'页面不存在'});const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png'};res.writeHead(200,{'Content-Type':types[path.extname(f)],'Cache-Control':'no-cache'});res.end(await readFile(path.join(root,'public',f)));
 }catch(e){if(!res.headersSent)json(res,e.status||500,{error:e.name==='TimeoutError'?'模型响应超时，请重试':e.status?e.message:'操作失败，请检查设置或稍后重试'});else res.end();}});
 const port=Number(process.env.PORT)||4173;server.listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Nong Planner: http://localhost:${port}\n首次在本机打开即可使用。配对密钥保存在 data/config.json。`));

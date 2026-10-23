@@ -53,7 +53,7 @@ try {
     & "$JdkPath/bin/keytool.exe" -genkeypair -keystore $keyStore -storepass:file $keyPassword -keypass:file $keyPassword -alias nong-personal -keyalg RSA -keysize 3072 -validity 10000 -dname 'CN=Nong Planner Personal, OU=Personal App, O=Nong Planner' -noprompt
     CheckExit 'Create personal signing certificate'
   }
-  $apkName=if ($EmulatorTest) {'Nong-Planner-0.4.1-emulator-test.apk'} else {'Nong-Planner-0.4.1.apk'}
+  $apkName=if ($EmulatorTest) {'Nong-Planner-0.6.0-emulator-test.apk'} else {'Nong-Planner-0.6.0.apk'}
   $apk=Join-Path $output $apkName
   & "$SdkTools/apksigner.bat" sign --ks $keyStore --ks-key-alias nong-personal --ks-pass "file:$keyPassword" --out $apk "$build/aligned.apk"
   CheckExit 'Sign APK'

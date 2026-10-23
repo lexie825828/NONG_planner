@@ -28,7 +28,7 @@ final class DevicePlanner {
   SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.US);format.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));format.setLenient(false);
   for(int i=0;i<tasks.length();i++){
    JSONObject t=tasks.getJSONObject(i);String id=t.optString("id"),date=t.optString("date"),time=t.optString("time");
-   if(id.isEmpty()||!date.matches("\\d{4}-\\d{2}-\\d{2}")||!time.matches("([01]\\d|2[0-3]):[0-5]\\d")||t.optBoolean("deleted"))continue;
+   if(id.isEmpty()||!date.matches("\\d{4}-\\d{2}-\\d{2}")||!time.matches("([01]\\d|2[0-3]):[0-5]\\d")||t.optBoolean("deleted")||t.optBoolean("canceled"))continue;
    long start;try{start=format.parse(date+" "+time).getTime();}catch(Exception e){continue;}
    ContentValues v=new ContentValues();v.put("calendar_id",cal);v.put("_sync_id",id);v.put("title",(t.optBoolean("done")?"✓ ":"")+t.optString("title"));v.put("description",t.optString("note"));v.put("dtstart",start);v.put("dtend",start+Math.max(5,Math.min(1440,t.optInt("duration",60)))*60000L);v.put("eventTimezone","Asia/Shanghai");v.put("hasAlarm",t.optBoolean("done")?0:1);
    Long event=existing.remove(id);
@@ -38,7 +38,7 @@ final class DevicePlanner {
   }
   for(Long event:existing.values())r.delete(syncUri(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI,event)),null,null);
  }
- static void schedule(Context c){JobScheduler jobs=(JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);jobs.schedule(new JobInfo.Builder(6040,new ComponentName(c,ReminderJob.class)).setPeriodic(6*60*60*1000L).setPersisted(true).build());}
+ static void schedule(Context c){ReviewReminders.schedule(c);JobScheduler jobs=(JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);jobs.schedule(new JobInfo.Builder(6040,new ComponentName(c,ReminderJob.class)).setPeriodic(6*60*60*1000L).setPersisted(true).build());}
  static synchronized void notifyHabits(Context c)throws Exception{
   NotificationManager manager=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);manager.createNotificationChannel(new NotificationChannel("nong-habits","循环习惯提醒",NotificationManager.IMPORTANCE_DEFAULT));
   android.content.SharedPreferences p=prefs(c);if(!p.getBoolean("habitNotifications",false))return;

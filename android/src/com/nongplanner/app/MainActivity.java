@@ -23,13 +23,14 @@ import java.util.concurrent.*;
 /** Offline Android host. Only bundled code can access the narrow native API. */
 public class MainActivity extends Activity {
   static final String ORIGIN="https://appassets.androidplatform.net/";
-  static final String[] COLLECTIONS={"tasks","projects","habits","checkins","reviews","goals","notes","messages","sessions","diaries","memories","weekTodos"};
+  static final String[] COLLECTIONS={"tasks","projects","habits","checkins","reviews","goals","notes","messages","sessions","diaries","memories","weekTodos","plannerSettings"};
   final ExecutorService deviceWorker=Executors.newSingleThreadExecutor();
   final ExecutorService workers=Executors.newFixedThreadPool(4);
   final Object stateLock=new Object();
   WebView web; android.content.SharedPreferences prefs;
   ValueCallback<Uri[]> picker; String exportText; volatile boolean trusted=false;
   final Handler mainHandler=new Handler(Looper.getMainLooper());
+  boolean activityResumed=false,dispatchingLaunch=false;
   volatile boolean pageReady=false; boolean diagnosticsShown=false; String loadDiagnostics="";
   final Runnable bootWatchdog=()->{if(!pageReady&&!isFinishing())showLoadFailure("页面启动未完成");};
 
@@ -102,7 +103,7 @@ public class MainActivity extends Activity {
   synchronized void recordLoadError(String message){if(loadDiagnostics.length()<6000)loadDiagnostics+=message+"\n";}
   String diagnostics(){
     android.content.pm.PackageInfo engine=WebView.getCurrentWebViewPackage();
-    return "Nong Planner 0.4.1\nAndroid "+Build.VERSION.RELEASE+" / API "+Build.VERSION.SDK_INT+"\n"+Build.MANUFACTURER+" "+Build.MODEL+"\nWebView: "+(engine==null?"unknown":engine.packageName+" "+engine.versionName)+"\n"+loadDiagnostics;
+    return "Nong Planner 0.6.0\nAndroid "+Build.VERSION.RELEASE+" / API "+Build.VERSION.SDK_INT+"\n"+Build.MANUFACTURER+" "+Build.MODEL+"\nWebView: "+(engine==null?"unknown":engine.packageName+" "+engine.versionName)+"\n"+loadDiagnostics;
   }
   void showLoadFailure(String title){
     if(diagnosticsShown||isFinishing()||pageReady)return;diagnosticsShown=true;
@@ -115,7 +116,7 @@ public class MainActivity extends Activity {
   void toast(String text){runOnUiThread(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show());}
   JSONObject error(String text){JSONObject o=new JSONObject();try{o.put("error",text);}catch(Exception ignored){}return o;}
   public final class Bridge {
-    @JavascriptInterface public void ready(){if(!trusted)return;pageReady=true;mainHandler.removeCallbacks(bootWatchdog);}
+    @JavascriptInterface public void ready(){if(!trusted)return;pageReady=true;mainHandler.removeCallbacks(bootWatchdog);runOnUiThread(()->deliverLaunchAction());}
     @JavascriptInterface public void reportError(String message){if(trusted)recordLoadError(message);}
     @JavascriptInterface public void request(String id,String route,String method,String raw){
       if(!trusted)return;
@@ -126,10 +127,15 @@ public class MainActivity extends Activity {
         runOnUiThread(()->{if(web!=null&&trusted)web.evaluateJavascript(js,null);});
       });
     }
+    @JavascriptInterface public String getWeekZoom(){return trusted?prefs.getString("weekZoom",""):"";}
+    @JavascriptInterface public void setWeekZoom(String zoom){if(trusted&&Arrays.asList("fit","normal","large").contains(zoom))prefs.edit().putString("weekZoom",zoom).commit();}
+    @JavascriptInterface public void haptic(String kind){if(trusted)runOnUiThread(()->web.performHapticFeedback(kind.equals("complete")&&Build.VERSION.SDK_INT>=30?android.view.HapticFeedbackConstants.CONFIRM:android.view.HapticFeedbackConstants.KEYBOARD_TAP));}
+    @JavascriptInterface public void enableReviewReminders(){if(trusted)runOnUiThread(()->{if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},23);else deviceReady();});}
+    @JavascriptInterface public void snoozeReview(int hours){if(trusted&&(hours==0||hours==24))deviceWorker.execute(()->ReviewReminders.snooze(MainActivity.this,hours));}
     @JavascriptInterface public String getTheme(){return trusted?prefs.getString("plannerTheme","{}"):"{}";}
-    @JavascriptInterface public void saveTheme(String raw){if(!trusted||raw.length()>300)return;try{JSONObject input=new JSONObject(raw),out=new JSONObject();for(String part:new String[]{"paper","surface","accent"}){String color=input.optString(part);if(!Arrays.asList("red","blue","pink").contains(color))return;out.put(part,color);}prefs.edit().putString("plannerTheme",out.toString()).commit();}catch(Exception ignored){}}
-    @JavascriptInterface public String deviceStatus(){if(!trusted)return "{}";try{return new JSONObject().put("calendar",prefs.getBoolean("calendarEnabled",false)&&DevicePlanner.calendarAllowed(MainActivity.this)).put("notifications",prefs.getBoolean("habitNotifications",false)&&(Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED)).toString();}catch(Exception e){return "{}";}}
-    @JavascriptInterface public void syncPlanner(String raw){if(!trusted||raw.length()>4000000)return;deviceWorker.execute(()->{try{new JSONObject(raw);prefs.edit().putString("devicePlanner",raw).commit();DevicePlanner.syncCalendar(MainActivity.this);DevicePlanner.notifyHabits(MainActivity.this);}catch(Exception e){toast("手机日历或提醒更新失败："+e.getMessage());}});}
+    @JavascriptInterface public void saveTheme(String raw){if(!trusted||raw.length()>300)return;try{JSONObject input=new JSONObject(raw),out=new JSONObject();for(String part:new String[]{"paper","surface","accent"}){String color=input.optString(part);if(!Arrays.asList("red","blue","pink","yellow","green").contains(color))return;out.put(part,color);}prefs.edit().putString("plannerTheme",out.toString()).commit();}catch(Exception ignored){}}
+    @JavascriptInterface public String deviceStatus(){if(!trusted)return "{}";try{return new JSONObject().put("notificationPermission",Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED).put("calendar",prefs.getBoolean("calendarEnabled",false)&&DevicePlanner.calendarAllowed(MainActivity.this)).put("notifications",prefs.getBoolean("habitNotifications",false)&&(Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED)).toString();}catch(Exception e){return "{}";}}
+    @JavascriptInterface public void syncPlanner(String raw){if(!trusted||raw.length()>4000000)return;deviceWorker.execute(()->{try{new JSONObject(raw);prefs.edit().putString("devicePlanner",raw).commit();DevicePlanner.syncCalendar(MainActivity.this);DevicePlanner.notifyHabits(MainActivity.this);ReviewReminders.run(MainActivity.this);ReviewReminders.schedule(MainActivity.this);}catch(Exception e){toast("手机日历或提醒更新失败："+e.getMessage());}});}
     @JavascriptInterface public void configureCalendar(){if(trusted)runOnUiThread(()->{if(prefs.getBoolean("calendarEnabled",false)){new AlertDialog.Builder(MainActivity.this).setMessage("关闭后停止同步，并移除 Nong Planner 自动写入的日程？计划本内的记录保留。").setNegativeButton("取消",null).setPositiveButton("关闭并移除",(d,w)->{prefs.edit().putBoolean("calendarEnabled",false).apply();deviceWorker.execute(()->{try{DevicePlanner.syncCalendar(MainActivity.this);}catch(Exception e){toast(e.getMessage());}});deviceReady();toast("自动日历已关闭");}).show();}else if(checkSelfPermission(android.Manifest.permission.READ_CALENDAR)!=android.content.pm.PackageManager.PERMISSION_GRANTED||checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR,android.Manifest.permission.WRITE_CALENDAR},21);}else{prefs.edit().putBoolean("calendarEnabled",true).apply();deviceReady();toast("自动日历已开启");}});}
     @JavascriptInterface public void enableReminders(){if(trusted)runOnUiThread(()->{if(prefs.getBoolean("habitNotifications",false)){prefs.edit().putBoolean("habitNotifications",false).apply();((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancel(6040);deviceReady();toast("循环习惯通知已关闭");return;}if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},22);else{prefs.edit().putBoolean("habitNotifications",true).apply();DevicePlanner.schedule(MainActivity.this);deviceReady();toast("循环习惯通知已开启");}});}
     @JavascriptInterface public void configureServer(){if(trusted)runOnUiThread(()->serverDialog());}
@@ -178,7 +184,7 @@ public class MainActivity extends Activity {
   JSONObject http(String endpoint,String method,JSONObject data,String key)throws Exception{return http(endpoint,method,data,key,"");}
   JSONObject http(String endpoint,String method,JSONObject data,String key,String session)throws Exception{
     validateUrl(endpoint);HttpURLConnection connection=(HttpURLConnection)new URL(endpoint).openConnection();
-    try{connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(15000);connection.setReadTimeout(90000);connection.setRequestMethod(method);connection.setRequestProperty("Accept","application/json");connection.setRequestProperty("User-Agent","NongPlanner/0.4.1");if(!session.isEmpty())connection.setRequestProperty("x-opencode-session",session.replaceAll("[^a-zA-Z0-9_.:-]","_"));if(!key.isEmpty())connection.setRequestProperty("Authorization","Bearer "+key);
+    try{connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(15000);connection.setReadTimeout(90000);connection.setRequestMethod(method);connection.setRequestProperty("Accept","application/json");connection.setRequestProperty("User-Agent","NongPlanner/0.6.0");if(!session.isEmpty())connection.setRequestProperty("x-opencode-session",session.replaceAll("[^a-zA-Z0-9_.:-]","_"));if(!key.isEmpty())connection.setRequestProperty("Authorization","Bearer "+key);
       if(data!=null){connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json; charset=utf-8");try(OutputStream out=connection.getOutputStream()){out.write(data.toString().getBytes(StandardCharsets.UTF_8));}}
       int code=connection.getResponseCode();if(code<200||code>=300){String detail="服务返回 "+code+"，请检查地址、密钥、模型与服务是否开启";if(connection.getErrorStream()!=null)try(InputStream in=connection.getErrorStream()){JSONObject err=new JSONObject(read(in));detail=err.optString("message",err.optString("error",detail));}catch(Exception ignored){}return new JSONObject().put("nativeStatus",code>=400?code:502).put("error",detail);}
       try(InputStream in=connection.getInputStream()){return new JSONObject(read(in));}
@@ -200,14 +206,17 @@ public class MainActivity extends Activity {
     AlertDialog dialog=new AlertDialog.Builder(this).setTitle("连接电脑同步 / 手机本地").setView(layout).setNegativeButton("取消",null).setPositiveButton("保存连接",null).create();
     dialog.setOnShowListener(d->dialog.getButton(-1).setOnClickListener(v->{try{String target=url.getText().toString().trim().replaceAll("/+$","");if(!target.isEmpty())validateUrl(target);String secret=token.getText().toString().trim();if(!target.isEmpty()&&secret.isEmpty()){if(!target.equals(prefs.getString("remote","")))throw new IOException("请填写配对密钥");secret=secret("remoteToken");}putSecret("remoteToken",secret);prefs.edit().putString("remote",target).apply();web.evaluateJavascript("window.dispatchEvent(new Event('nong-server-changed'))",null);dialog.dismiss();}catch(Exception e){toast(e.getMessage());}}));dialog.show();
   }
+  boolean wantsReview(){return "review".equals(getIntent().getStringExtra("nong_action"))||"com.nongplanner.OPEN_REVIEW".equals(getIntent().getAction());}
+  void deliverLaunchAction(){if(web==null||!trusted||!pageReady||!activityResumed||dispatchingLaunch||!wantsReview())return;dispatchingLaunch=true;web.evaluateJavascript("(()=>{window.dispatchEvent(new Event('nong-open-review'));return true;})()",result->{dispatchingLaunch=false;if("true".equals(result)){getIntent().removeExtra("nong_action");getIntent().setAction(Intent.ACTION_MAIN);}});}
+  @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(pageReady&&activityResumed)mainHandler.postDelayed(()->deliverLaunchAction(),120);}
   void deviceReady(){if(web!=null&&trusted)web.evaluateJavascript("window.dispatchEvent(new Event('nong-device-ready'))",null);}
-  @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){super.onRequestPermissionsResult(request,permissions,grants);boolean ok=grants.length>0;for(int grant:grants)if(grant!=android.content.pm.PackageManager.PERMISSION_GRANTED)ok=false;if(request==21){prefs.edit().putBoolean("calendarEnabled",ok).apply();toast(ok?"自动日历已开启":"未获日历权限，可在设置中重新开启");}if(request==22){prefs.edit().putBoolean("habitNotifications",ok).apply();toast(ok?"循环习惯通知已开启":"通知权限未开启，仍会在计划本内提醒");DevicePlanner.schedule(this);}if(ok)deviceReady();}
+  @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){super.onRequestPermissionsResult(request,permissions,grants);boolean ok=grants.length>0;for(int grant:grants)if(grant!=android.content.pm.PackageManager.PERMISSION_GRANTED)ok=false;if(request==21){prefs.edit().putBoolean("calendarEnabled",ok).apply();toast(ok?"自动日历已开启":"未获日历权限，可在设置中重新开启");}if(request==22){prefs.edit().putBoolean("habitNotifications",ok).apply();toast(ok?"循环习惯通知已开启":"通知权限未开启，仍会在计划本内提醒");DevicePlanner.schedule(this);}if(request==23){toast(ok?"复盘通知已开启":"通知权限未开启，可在系统设置中允许");ReviewReminders.schedule(this);}if(ok)deviceReady();}
   @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);
     if(request==10&&picker!=null){Uri[] uris=null;if(result==RESULT_OK&&data!=null){if(data.getClipData()!=null){uris=new Uri[data.getClipData().getItemCount()];for(int i=0;i<uris.length;i++)uris[i]=data.getClipData().getItemAt(i).getUri();}else if(data.getData()!=null)uris=new Uri[]{data.getData()};}picker.onReceiveValue(uris);picker=null;}
     if(request==11){final String content=exportText;exportText=null;if(result==RESULT_OK&&data!=null&&data.getData()!=null&&content!=null){Uri uri=data.getData();workers.execute(()->{try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException();out.write(content.getBytes(StandardCharsets.UTF_8));toast("文件已保存");}catch(Exception e){toast("文件保存失败，请重新导出");}});}}
   }
   @Override public void onBackPressed(){web.evaluateJavascript("(()=>{const d=document.querySelector('dialog[open]');if(d){d.close();return 'closed';}return 'exit';})()",value->{if(!value.contains("closed"))new AlertDialog.Builder(this).setMessage("退出 Nong Planner？未发送的聊天草稿不会保留，计划和聊天记录会自动保存。").setNegativeButton("继续使用",null).setPositiveButton("退出",(d,w)->finish()).show();});}
-  @Override protected void onPause(){super.onPause();if(web!=null)web.evaluateJavascript("window.dispatchEvent(new Event('focus'))",null);}
-  @Override protected void onResume(){super.onResume();if(web!=null&&trusted)web.evaluateJavascript("window.dispatchEvent(new Event('focus'))",null);}
+  @Override protected void onPause(){activityResumed=false;super.onPause();if(web!=null)web.evaluateJavascript("window.dispatchEvent(new Event('focus'))",null);}
+  @Override protected void onResume(){super.onResume();activityResumed=true;mainHandler.postDelayed(()->deliverLaunchAction(),200);if(web!=null&&trusted)web.evaluateJavascript("window.dispatchEvent(new Event('focus'))",null);}
   @Override protected void onDestroy(){mainHandler.removeCallbacks(bootWatchdog);trusted=false;if(picker!=null)picker.onReceiveValue(null);if(web!=null){web.removeJavascriptInterface("NongAndroid");web.destroy();web=null;}workers.shutdown();deviceWorker.shutdown();super.onDestroy();}
 }
