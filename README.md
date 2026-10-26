@@ -88,6 +88,10 @@ npm test
 
 Android 构建脚本为 `android/build.ps1`，需要 Windows、PowerShell 7、JDK 17+、Android Build Tools 35 与 SDK Platform 35。详见 [构建说明](android/README.md)。
 
+## 20261026 历史版本补档
+
+[v0.5.0](https://github.com/lexie825828/NONG_planner/releases/tag/v0.5.0) 与 [v0.5.1](https://github.com/lexie825828/NONG_planner/releases/tag/v0.5.1) 原始正式安装包已补上传。它们的实际更新日期均为 **2026-10-22**，分别于北京时间20:18和20:38构建，详情见各发布页。2026-10-26是补上传日期；最新稳定版保持v0.6.0。
+
 ## 历史版本说明
 
 仓库导入了现存的 0.3.0、0.3.1、0.3.2、0.4.0、0.4.1 安装包及版本标签。**早期版本没有保留完整原始 Git 记录**：0.3.x / 0.4.0 标签下的 `public/` 从相应 APK 恢复，只包含当时的 Web 前端；没有伪造当时的完整原生与服务端源码。`main` 和 `v0.6.0` 提供当前完整可构建源码；`v0.4.1` 保留上次公开的完整源码。
