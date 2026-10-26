@@ -7,14 +7,14 @@ export function habitDue(h){
  return d.toISOString().slice(0,10);
 }
 export const dueHabits=(habits,date)=>habits.filter(h=>{const due=habitDue(h);return due&&due<=date&&!(h.days||[]).includes(date);});
-export function aiHeaders(sessionId){return {'User-Agent':'NongPlanner/0.5.0','x-opencode-session':String(sessionId||'nong-default').replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,128)};}
+export function aiHeaders(sessionId){return {'User-Agent':'NongPlanner/0.5.1','x-opencode-session':String(sessionId||'nong-default').replace(/[^a-zA-Z0-9_.:-]/g,'_').slice(0,128)};}
 export const addDays=(date,count)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+count);return d.toISOString().slice(0,10);};
 export const weekStart=date=>addDays(date,-(new Date(date+'T12:00:00Z').getUTCDay()+6)%7);
-export function migrateTask(t){if(t.scheduleVersion===2)return t;const task={...t,scheduleVersion:2,progressNotes:Array.isArray(t.progressNotes)?t.progressNotes:[]};
- // Prior project tasks used date as their DDL. Keep its value without making it a daily appointment.
- if(t.project&&t.date&&!t.time&&!Object.hasOwn(t,'due')){task.due=t.date;task.legacyScheduledDate=t.date;task.date='';}
- return task;
-}
+export const PLAN_TYPES={short:'短期行动 · 周计划',medium:'中期目标 · 超过一周',long:'长期目标'};
+export const planningTypeLabel=t=>PLAN_TYPES[t.planningType]||'待确认计划类型';
+// A project link says nothing about the duration of an action. Never reinterpret dates.
+export function migrateTask(t){return {...t,scheduleVersion:2,progressNotes:Array.isArray(t.progressNotes)?t.progressNotes:[]};}
+export const unclassifiedTasks=state=>state.tasks.filter(t=>activeTask(t)&&!PLAN_TYPES[t.planningType]);
 export const activeTask=t=>!t.done&&!t.canceled&&!t.deleted;
 export function visibleHabits(habits,date){return habits.filter(h=>{const due=habitDue(h);return !due||due<=addDays(date,3);});}
 export function pendingTasks(state,date){const start=weekStart(date);return state.tasks.filter(t=>activeTask(t)&&(t.schedule==='pool'||(t.date&&t.date<date)||(!t.date&&t.week&&t.week<start)));}
@@ -39,7 +39,7 @@ export function reviewScheduleItems(state,date){const prefs=preferences(state,da
  for(const t of state.tasks.filter(activeTask)){
   if(t.priority==='high')items.push({id:'important:'+t.id,title:t.title,category:'重要未完成',eligibleOn:t.date||date});
   if(t.due)items.push({id:'deadline:'+t.id,title:t.title,category:'截止日期已到',eligibleOn:t.due});
-  if(t.project||t.due)items.push({id:'idle-task:'+t.id,title:t.title,category:'中长期任务停滞',eligibleOn:addDays(lastActivity(t),Number(prefs.projectIdleDays)||7)});
+  if(['medium','long'].includes(t.planningType))items.push({id:'idle-task:'+t.id,title:t.title,category:'中长期任务停滞',eligibleOn:addDays(lastActivity(t),Number(prefs.projectIdleDays)||7)});
  }
  for(const p of state.projects){const linked=state.tasks.filter(t=>t.project===p.id&&!t.canceled&&!t.deleted);if(linked.length&&linked.every(t=>t.done))continue;const last=[p.updatedAt?.slice(0,10),p.createdAt?.slice(0,10),...linked.map(lastActivity)].filter(Boolean).sort().at(-1)||baseline;items.push({id:'project:'+p.id,title:p.title,category:'项目等待推进',eligibleOn:addDays(last,Number(prefs.projectIdleDays)||7)});}
  for(const h of state.habits){const due=habitDue(h),last=[...(h.days||[])].sort().at(-1)||h.startedOn||baseline;items.push({id:'habit:'+h.id,title:h.title,category:due?'循环习惯到期':'习惯中断',eligibleOn:due||addDays(last,Number(prefs.habitGapDays)||3)});}
